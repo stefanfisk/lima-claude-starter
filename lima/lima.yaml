@@ -20,9 +20,6 @@ mounts:
     mountPoint: "/workspaces/{{.Name}}"
     writable: true
 
-env:
-  ANTHROPIC_API_KEY: "{{.Env.ANTHROPIC_API_KEY}}"
-
 provision:
   - mode: system
     script: |
