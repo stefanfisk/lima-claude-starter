@@ -1,0 +1,30 @@
+vmType: vz
+os: Linux
+cpus: 2
+memory: "2GiB"
+disk: "20GiB"
+
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-\
+      server-cloudimg-arm64.img"
+    arch: aarch64
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-\
+      server-cloudimg-amd64.img"
+    arch: x86_64
+
+networks:
+  - vzNAT: true
+
+mounts:
+  - location: "."
+    mountPoint: "/workspaces/{{.Name}}"
+    writable: true
+
+env:
+  ANTHROPIC_API_KEY: "{{.Env.ANTHROPIC_API_KEY}}"
+
+provision:
+  - mode: system
+    script: |
+      apt-get update
+      apt-get upgrade -y
