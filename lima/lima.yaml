@@ -25,3 +25,10 @@ provision:
     script: |
       apt-get update
       apt-get upgrade -y
+  - mode: user
+    script: |
+      mkdir -p '/workspaces/{{.Name}}/.claude/global'
+      ln -s '/workspaces/{{.Name}}/.claude/global/' ~/.claude
+      ln -s '/workspaces/{{.Name}}/.claude/global/claude.json' ~/.claude.json
+      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+      curl -fsSL https://claude.ai/install.sh | bash
