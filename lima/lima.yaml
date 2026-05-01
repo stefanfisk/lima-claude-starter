@@ -32,3 +32,4 @@ provision:
       ln -s '/workspaces/{{.Name}}/.claude/global/claude.json' ~/.claude.json
       echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
       curl -fsSL https://claude.ai/install.sh | bash
+      echo 'cd /workspaces/{{.Name}} 2>/dev/null || true' >> ~/.bashrc

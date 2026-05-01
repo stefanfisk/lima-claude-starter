@@ -1,8 +1,8 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
-source "$(dirname "$0")/load-env.sh"
+source "$(dirname "$0")/load-host-env.sh"
 
 VERBOSITY=0
 while getopts "v" opt; do
@@ -31,5 +31,5 @@ limactl start "${LIMACTL_ARGS[@]}" "$PROJECT_DIR/lima/lima.yaml"
 echo ""
 echo "Run this to set the default Lima instance:"
 echo ""
-echo "source ./lima/load-env.sh"
+echo "source ./lima/load-host-env.sh"
 echo ""

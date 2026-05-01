@@ -1,8 +1,8 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
-source "$(dirname "$0")/load-env.sh"
+source "$(dirname "$0")/load-host-env.sh"
 
 VERBOSITY=0
 while getopts "v" opt; do

@@ -1,3 +1,8 @@
+if [[ -d /run/lima-guestagent ]]; then
+  echo "Error: this script must be run on the host, not inside the Lima VM." >&2
+  exit 1
+fi
+
 # Uses ${BASH_SOURCE[0]} which is a bash-specific variable, so it won't work in plain sh or zsh when
 # sourced. In zsh, ${BASH_SOURCE[0]} is undefined, so the PROJECT_DIR calculation would silently
 # break.
