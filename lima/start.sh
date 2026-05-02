@@ -4,29 +4,28 @@ set -euo pipefail
 
 source "$(dirname "$0")/load-host-env.sh"
 
-VERBOSITY=0
-while getopts "v" opt; do
-  case $opt in
-    v) ((VERBOSITY++)) ;;
-    *) echo "usage: $0 [-v|-vv]" >&2; exit 1 ;;
-  esac
-done
-
-LIMACTL_ARGS=(
-  --tty=false
-  --name="$LIMA_INSTANCE"
-  --set=".mounts[0].location = \"$PROJECT_DIR\""
-)
-
-case $VERBOSITY in
-  0) LIMACTL_ARGS+=(--log-level=warn) ;;
-  1) LIMACTL_ARGS+= ;;
-  *) LIMACTL_ARGS+=(--progress) ;;
-esac
+SENTINEL_ID="$(date -u +"%Y-%m-%dT%H:%M:%SZ")-$(head -c20 /dev/random | base64)"
+SENTINEL="$PROJECT_DIR/lima/var/.provisioned"
 
 echo "Starting lima instance \"$LIMA_INSTANCE\""
+echo ""
 
-limactl start "${LIMACTL_ARGS[@]}" "$PROJECT_DIR/lima/lima.yaml"
+limactl start \
+  --tty=false \
+  --progress \
+  --name "$LIMA_INSTANCE" \
+  --set ".param.sentinelId = \"$SENTINEL_ID\"" \
+  --set ".mounts[0].location = \"$PROJECT_DIR\"" \
+  "$PROJECT_DIR/lima/lima.yaml"
+
+if [[ "$(cat "$SENTINEL")" != "$SENTINEL_ID" ]]; then
+  echo ""
+  echo "Failed to provision the Lima instance."
+  echo ""
+  echo "Deleting instance..."
+  echo ""
+  exit 1;
+fi
 
 echo ""
 echo "Run this to set the default Lima instance:"

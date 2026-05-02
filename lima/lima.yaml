@@ -17,16 +17,19 @@ mounts:
     mountPoint: "/workspaces/{{.Name}}"
     writable: true
 
+containerd:
+  system: false
+  user: false
+  archives: []
+
 provision:
   - mode: system
     script: |
+      #!/bin/bash
+
+      set -eux -o pipefail
+
       apt-get update
       apt-get upgrade -y
   - mode: user
-    script: |
-      mkdir -p '/workspaces/{{.Name}}/.claude/global'
-      ln -s '/workspaces/{{.Name}}/.claude/global/' ~/.claude
-      ln -s '/workspaces/{{.Name}}/.claude/global/claude.json' ~/.claude.json
-      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
-      curl -fsSL https://claude.ai/install.sh | bash
-      echo 'cd /workspaces/{{.Name}} 2>/dev/null || true' >> ~/.bashrc
+    script: exec '/workspaces/{{.Name}}/lima/provision.sh' '/workspaces/{{.Name}}' '{{.Param.sentinelId}}'

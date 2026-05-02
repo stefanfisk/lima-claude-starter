@@ -4,12 +4,5 @@ set -euo pipefail
 
 source "$(dirname "$0")/load-host-env.sh"
 
-VERBOSITY=""
-while getopts "v" opt; do
-  case $opt in
-    v) VERBOSITY="${VERBOSITY}-v " ;;
-  esac
-done
-
-"$PROJECT_DIR/lima/delete.sh" $VERBOSITY
-"$PROJECT_DIR/lima/start.sh" $VERBOSITY
+"$PROJECT_DIR/lima/delete.sh"
+"$PROJECT_DIR/lima/start.sh"

@@ -1,4 +1,3 @@
-# Local settings
-.claude/global
-.claude/settings.local.json
+/.claude
+!/.claude/settings.json
 .env
