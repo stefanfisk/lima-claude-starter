@@ -4,52 +4,60 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A starter template for running Claude Code inside a [Lima](https://lima-vm.io/) VM. The repo itself is the project that gets mounted into the VM at `/workspaces/$LIMA_INSTANCE`, so the same checkout is visible from both host and guest. Downstream projects are expected to copy/fork this skeleton and add their own code on top.
+A standalone toolkit for running Claude Code inside a [Lima](https://lima-vm.io/) VM. The `bin/` directory is designed to be checked out once and added to `$PATH`; downstream projects then bootstrap their own VM by creating a `.env` file in the project root and running `limac-start` from there.
 
-## Host vs. guest
+Projects do not vendor this toolkit. The toolkit and the project being worked on are fully decoupled.
 
-Scripts are split between two execution contexts and refuse to run in the wrong one:
+## Layout
 
-- **Host scripts** (`lima/*.sh` except `provision.sh`) source `lima/load-host-env.sh`, which errors out if `/run/lima-guestagent` exists (i.e. if accidentally run inside the VM).
-- **Guest script** (`lima/provision.sh`) inverts the check — it errors out if `/run/lima-guestagent` does *not* exist.
+- `bin/` — **public** scripts only. This directory is meant to be added to the user's `$PATH`, so anything here is treated as a user-facing entry point. Do not put helpers, libraries, configs, or anything else in `bin/` that you wouldn't want exposed as a top-level command.
+- Repo root — everything else: `lima.yaml`, `.env.example`, `load-host-env.sh` (sourced by the `bin/` scripts via `../load-host-env.sh`), and `CLAUDE.md`. Internal helpers and shared logic belong here, not in `bin/`.
 
-When editing or adding scripts, preserve this guardrail.
+## Two directories that matter
 
-## Common commands (run from host)
+- **`TOOLKIT_DIR`** — the repo root, where `lima.yaml` and `.env.example` live. Resolved as `$(dirname "$0")/..` from a script in `bin/`, NOT from `$PWD`.
+- **`PROJECT_DIR`** — `$PWD` at invocation time. The `.env` is read from here and this directory is what gets mounted into the VM at `/workspaces/$LIMA_INSTANCE`.
 
-```bash
-./lima/start.sh     # create + provision the VM (idempotent via SENTINEL_ID)
-./lima/delete.sh    # force-delete the VM
-./lima/rebuild.sh   # delete + start
-./lima/ssh-bash.sh  # interactive bash inside the VM
-./lima/ssh-claude.sh # launch `claude` inside the VM
-./lima/ssh-code.sh  # open the workspace in VS Code via Remote-SSH
-```
-
-To set the default Lima instance for `limactl` in the current shell:
-
-```bash
-source ./lima/load-host-env.sh
-```
-
-## Configuration flow
-
-1. `.env.example` is copied to `.env` automatically by `load-host-env.sh` on first run; the user must set `LIMA_INSTANCE` before scripts will proceed.
-2. `load-host-env.sh` resolves `PROJECT_DIR` from `${BASH_SOURCE[0]:-${(%):-%x}}` so it works when sourced from both bash and zsh — do not regress this to plain `${BASH_SOURCE[0]}`.
-3. `start.sh` passes `PROJECT_DIR` into the VM by overriding `.mounts[0].location` at the CLI rather than templating the YAML.
-
-## Provisioning sentinel
-
-`start.sh` generates a fresh `SENTINEL_ID` (timestamp + random) per invocation and passes it via `.param.sentinelId`. `provision.sh` writes it to `lima/var/.provisioned` only on success. After `limactl start` returns, the host script reads that file back and aborts if the value doesn't match — this is how a silently-failed provision is detected. Don't remove the sentinel check when modifying provisioning.
+These are deliberately separate. `PROJECT_DIR` is **always** `$PWD`, never derived from the script location — this is a fail-safe so that running e.g. `limac-rebuild` from a subdirectory of the project doesn't silently mount the wrong tree.
 
 ## Persistent guest state
 
-`lima/var/` is host-mounted and gitignored (except its own `.gitignore`). It's used to keep guest state across VM rebuilds:
+Per-instance state (the guest's `~/.claude/` config and credentials) lives in:
 
-- `lima/var/home/.claude/` and `lima/var/home/.claude.json` are symlinked into the guest's `~/` during provisioning, so Claude Code config/credentials survive `rebuild.sh`.
+```
+${LIMA_CLAUDE_STATE_DIR:-$HOME/.local/share/lima-claude}/<LIMA_INSTANCE>/
+```
 
-If you add new persistent guest state, follow the same pattern (store under `lima/var/`, symlink from `~`).
+It is mounted into the VM at `/var/lib/lima-claude-state` and `~/.claude` / `~/.claude.json` in the guest are symlinked into it during provisioning. Survives `limactl delete` and therefore `limac-rebuild`. Override the base directory with `LIMA_CLAUDE_STATE_DIR`.
+
+The provisioning sentinel (`.provisioned`) lives in this state dir and stores the `SENTINEL_ID` from the most recent successful provision. `limac-start` writes a fresh `SENTINEL_ID` per invocation via `--set .param.sentinelId`, the inline provision script writes it on success, and `limac-start` reads it back to detect a silently-failed provision. Don't remove this check.
+
+## Host vs. guest
+
+Scripts are split between two execution contexts:
+
+- **Host scripts** (`bin/limac-*`) source `../load-host-env.sh`, which errors if `/run/lima-guestagent` exists.
+- **Guest provisioning** is inlined in `lima.yaml` under `provision:` and runs only inside the VM.
+
+## Common commands (run from PROJECT_DIR)
+
+```bash
+limac-start     # create + provision the VM
+limac-delete    # force-delete the VM (state dir is preserved)
+limac-rebuild   # delete + start
+limac-shell     # interactive shell inside the VM
+limac-claude    # launch `claude` inside the VM
+limac-code      # open the workspace in VS Code via Remote-SSH
+```
+
+These all read `./.env` and require `LIMA_INSTANCE` to be set. Missing `.env` or empty `LIMA_INSTANCE` is a hard error — there is no auto-copy from `.env.example`. To bootstrap a new project, copy `.env.example` from the toolkit to your project's `.env` and set `LIMA_INSTANCE`.
 
 ## VM specs
 
-Defined in `lima/lima.yaml`: Ubuntu 24.04 (`template:_images/ubuntu-24.04`), `vmType: vz`, 2 CPUs, 2 GiB RAM, 10 GiB disk, vzNAT networking. containerd is disabled. Claude Code is installed via `curl … claude.ai/install.sh | bash` with up to 3 retries.
+Defined in `lima.yaml`: Ubuntu 24.04 (`template:_images/ubuntu-24.04`), `vmType: vz`, 2 CPUs, 2 GiB RAM, 10 GiB disk, vzNAT networking. containerd is disabled. Claude Code is installed via `curl … claude.ai/install.sh | bash` with up to 3 retries.
+
+## When editing scripts
+
+- Preserve the host/guest guardrails (`/run/lima-guestagent` checks).
+- Never derive `PROJECT_DIR` from the script location — it must always be `$PWD`.
+- Keep the bash/zsh-compatible `${BASH_SOURCE[0]:-${(%):-%x}}` idiom for resolving `TOOLKIT_DIR`; plain `${BASH_SOURCE[0]}` silently breaks when the script is sourced from zsh.

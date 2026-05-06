@@ -1,0 +1,74 @@
+minimumLimaVersion: 2.0.0
+
+base:
+  - template:_images/ubuntu-24.04
+
+vmType: vz
+os: Linux
+cpus: 2
+memory: "2GiB"
+disk: "10GiB"
+
+networks:
+  - vzNAT: true
+
+mounts:
+  - location: "{{.Param.projectDir}}"
+    mountPoint: "/workspaces/{{.Name}}"
+    writable: true
+  - location: "{{.Param.stateDir}}"
+    mountPoint: "/var/lib/lima-claude-state"
+    writable: true
+
+containerd:
+  system: false
+  user: false
+  archives: []
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      apt-get update
+      apt-get upgrade -y
+  - mode: user
+    script: |
+      #!/bin/bash
+
+      set -eux -o pipefail
+
+      PROJECT_DIR="/workspaces/{{.Name}}"
+      STATE_DIR="/var/lib/lima-claude-state"
+      SENTINEL="$STATE_DIR/.provisioned"
+      SENTINEL_ID="{{.Param.sentinelId}}"
+
+      echo ""
+      echo "Installing claude code"
+      echo ""
+
+      mkdir -p "$STATE_DIR/home/.claude"
+      ln -sfn "$STATE_DIR/home/.claude" "$HOME/.claude"
+      ln -sfn "$STATE_DIR/home/.claude.json" "$HOME/.claude.json"
+
+      echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile
+      PATH="$HOME/.local/bin:$PATH"
+
+      # install.sh sometimes fails, retry up to 3 times
+      for i in 1 2 3; do
+          curl -fsSL https://claude.ai/install.sh | bash && break
+          echo "Claude install attempt $i failed, retrying..."
+          sleep 5
+      done
+      if ! command -v claude &>/dev/null; then
+          echo "ERROR: Claude CLI failed to install after retries"
+          exit 1
+      fi
+
+      echo ""
+      echo "cd to $PROJECT_DIR on login"
+      echo ""
+
+      echo "cd \"$PROJECT_DIR\" 2>/dev/null || true" >> ~/.bashrc
+
+      echo "$SENTINEL_ID" > "$SENTINEL"
