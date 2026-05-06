@@ -6,6 +6,12 @@ source "$(dirname "$0")/../load-host-env.sh"
 
 mkdir -p "$STATE_DIR"
 
+case "$(uname -s)" in
+  Darwin) LIMA_YAML="$TOOLKIT_DIR/lima.macos.yaml" ;;
+  Linux)  LIMA_YAML="$TOOLKIT_DIR/lima.linux.yaml" ;;
+  *)      echo "error: unsupported host OS: $(uname -s)" >&2; exit 1 ;;
+esac
+
 SENTINEL_ID="$(date -u +"%Y-%m-%dT%H:%M:%SZ")-$(head -c20 /dev/random | base64)"
 SENTINEL="$STATE_DIR/.provisioned"
 
@@ -19,7 +25,7 @@ limactl start \
   --set ".param.sentinelId = \"$SENTINEL_ID\"" \
   --set ".param.projectDir = \"$PROJECT_DIR\"" \
   --set ".param.stateDir = \"$STATE_DIR\"" \
-  "$TOOLKIT_DIR/lima.yaml"
+  "$LIMA_YAML"
 
 if [[ "$(cat "$SENTINEL")" != "$SENTINEL_ID" ]]; then
   echo ""

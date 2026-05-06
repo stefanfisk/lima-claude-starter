@@ -1,0 +1,9 @@
+base:
+  - ./lima.yaml
+
+# Per-VM host-reachable IPs are not currently supported on Linux hosts (Lima's
+# vmnet drivers are macOS-only; see https://github.com/lima-vm/lima/discussions/2499).
+# This file falls back to Lima's default user-mode networking — the VM has no
+# host-visible IP, but does NOT bind any host ports either, which preserves the
+# "no implicit host port binding" guarantee. If/when a portable per-VM-IP option
+# lands in Lima, this is the file to update.

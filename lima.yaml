@@ -3,14 +3,10 @@ minimumLimaVersion: 2.0.0
 base:
   - template:_images/ubuntu-24.04
 
-vmType: vz
 os: Linux
 cpus: 2
 memory: "2GiB"
 disk: "10GiB"
-
-networks:
-  - vzNAT: true
 
 mounts:
   - location: "{{.Param.projectDir}}"

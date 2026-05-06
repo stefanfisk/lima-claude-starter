@@ -1,0 +1,7 @@
+base:
+  - ./lima.yaml
+
+vmType: vz
+
+networks:
+  - vzNAT: true

@@ -54,7 +54,16 @@ These all read `./.env` and require `LIMA_INSTANCE` to be set. Missing `.env` or
 
 ## VM specs
 
-Defined in `lima.yaml`: Ubuntu 24.04 (`template:_images/ubuntu-24.04`), `vmType: vz`, 2 CPUs, 2 GiB RAM, 10 GiB disk, vzNAT networking. containerd is disabled. Claude Code is installed via `curl … claude.ai/install.sh | bash` with up to 3 retries.
+Defined in `lima.yaml`: Ubuntu 24.04 (`template:_images/ubuntu-24.04`), 2 CPUs, 2 GiB RAM, 10 GiB disk. containerd is disabled. Claude Code is installed via `curl … claude.ai/install.sh | bash` with up to 3 retries.
+
+## Per-platform Lima config
+
+`lima.yaml` is a shared base. The platform-specific files extend it via `base: [./lima.yaml]`:
+
+- **`lima.macos.yaml`** — sets `vmType: vz` and `networks: [{ vzNAT: true }]`, so the VM gets its own host-reachable IP via Apple's vmnet framework.
+- **`lima.linux.yaml`** — falls back to Lima's default user-mode networking. Per-VM host-reachable IPs are **not** supported on Linux today (`socket_vmnet` and friends are macOS-only — see [Lima discussion #2499](https://github.com/lima-vm/lima/discussions/2499)). The default mode also doesn't auto-bind any host ports, which preserves the "no implicit host port binding" guarantee.
+
+`bin/limac-start` picks the right file via `uname -s`. Other host OSes are a hard error. When adding settings that should apply to both platforms, put them in `lima.yaml`; only put platform-specific overrides in the `lima.<platform>.yaml` files.
 
 ## When editing scripts
 
