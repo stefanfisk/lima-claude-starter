@@ -4,4 +4,8 @@ set -euo pipefail
 
 source "$(dirname "$0")/../load-host-env.sh"
 
-exec ssh -t "lima-${LIMA_INSTANCE}" bash -i
+if [[ -t 0 ]]; then
+  exec ssh -t "lima-${LIMA_INSTANCE}" bash -li
+else
+  exec ssh "lima-${LIMA_INSTANCE}" bash -l
+fi
